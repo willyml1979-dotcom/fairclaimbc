@@ -1,5 +1,5 @@
 // app.jsx — FairClaimBC: warmer, more crafted SPA
-// ANTHROPIC_API_KEY is defined in index.html
+window.ANTHROPIC_API_KEY = "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";
 
 // ─────────────────────────────────────────────────────────────
 // THEMES — "warm" (default trust-house) and "bcgov" (BC government adjacent)
@@ -866,7 +866,7 @@ Al final incluye este bloque JSON con los datos estructurados (sin inventar URLs
         method: "POST",
         headers: {
           "Content-Type":         "application/json",
-          "x-api-key":            ANTHROPIC_API_KEY,
+          "x-api-key":            window.ANTHROPIC_API_KEY,
           "anthropic-version":    "2023-06-01",
           "anthropic-dangerous-direct-browser-calls": "true",
         },

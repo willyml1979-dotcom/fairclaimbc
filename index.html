@@ -24,8 +24,6 @@
   // FairClaimBC — GitHub Pages / static deployment
   // Calls Anthropic API directly from browser — no server needed
   // ─────────────────────────────────────────────────────────────
-  const ANTHROPIC_API_KEY = "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";
-
   // window.claude — used by letter.jsx for dispute letter generation
   window.claude = {
     complete: async function(prompt) {
@@ -33,7 +31,7 @@
         method: "POST",
         headers: {
           "Content-Type":      "application/json",
-          "x-api-key":         ANTHROPIC_API_KEY,
+          "x-api-key":         window.ANTHROPIC_API_KEY,
           "anthropic-version": "2023-06-01",
           "anthropic-dangerous-direct-browser-calls": "true",
         },
