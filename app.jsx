@@ -891,9 +891,11 @@ Al final incluye este bloque JSON con los datos estructurados (sin inventar URLs
 
       // Extract text from response
       let reportText = "";
+      console.log("[Debug] Full Anthropic response:", JSON.stringify(anthropicData).substring(0, 2000));
       for (const block of (anthropicData.content || [])) {
         if (block.type === "text") reportText += block.text;
       }
+      console.log("[Debug] Report text:", reportText.substring(0, 500));
 
       // Extract JSON block from report
       const jsonMatch = reportText.match(/```json\s*([\s\S]*?)```/);
