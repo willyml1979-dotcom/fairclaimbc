@@ -862,13 +862,10 @@ Al final incluye este bloque JSON con los datos estructurados (sin inventar URLs
 }
 \`\`\``;
 
-      const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
+      const anthropicRes = await fetch("https://fairclaimbc-api.willyml1979.workers.dev", {
         method: "POST",
         headers: {
-          "Content-Type":         "application/json",
-          "x-api-key":            window.ANTHROPIC_API_KEY,
-          "anthropic-version":    "2023-06-01",
-          "anthropic-dangerous-direct-browser-calls": "true",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           model:      "claude-sonnet-4-6",
