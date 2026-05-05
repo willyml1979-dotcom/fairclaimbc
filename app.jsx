@@ -1,8 +1,5 @@
 // app.jsx — FairClaimBC: warmer, more crafted SPA
-// ─────────────────────────────────────────────────────────────
-// ANTHROPIC API KEY — replace with your key for GitHub Pages demo
-// ─────────────────────────────────────────────────────────────
-const ANTHROPIC_API_KEY = "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";
+// ANTHROPIC_API_KEY is defined in index.html
 
 // ─────────────────────────────────────────────────────────────
 // THEMES — "warm" (default trust-house) and "bcgov" (BC government adjacent)
