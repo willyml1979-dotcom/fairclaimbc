@@ -1684,3 +1684,4 @@ Object.assign(window, {
   Header, TrustBar, Hero, HeroIllustration, DiagnosticForm, ComparableRow, LiveDelta, LockedScanResult,
   KnowYourRights, Testimonials, HowItWorks, FAQSection, Footer,
 });
+// v3
