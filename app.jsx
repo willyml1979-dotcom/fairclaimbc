@@ -832,33 +832,42 @@ function DiagnosticForm({ state, set, device, onReveal }) {
       const KM_FACTOR = 0.15;
       const WORKER    = "https://fairclaimbc-api.willyml1979.workers.dev";
 
-      const prompt = `Actúa como un perito valuador de vehículos profesional en British Columbia, experto en la determinación del Actual Cash Value (ACV) según la Insurance (Vehicle) Act.
+      const prompt = `You are a professional vehicle appraiser in British Columbia finding Actual Cash Value (ACV) comparables for an ICBC total loss dispute.
 
-Necesito investigar el valor de mercado actual (Retail) para:
-Vehículo: ${vehicle}${kmLine}
-Ubicación: Lower Mainland / Coquitlam, BC${offerLine}
+Search for: ${vehicle}${kmLine ? " | " + kmLine.trim() : ""}
+Location: Lower Mainland / British Columbia, Canada${offerLine ? " | " + offerLine.trim() : ""}
 
-Instrucciones de búsqueda:
-- Busca únicamente en inventarios de concesionarios (dealerships) establecidos en BC
-- Ignora ventas privadas (sin Marketplace, Craigslist, Kijiji)
-- Proporciona una lista de 3 a 5 vehículos similares que estén a la venta hoy mismo
-- Para cada vehículo incluye: Precio de lista, Kilometraje, Nombre del concesionario, Link directo al anuncio individual
+STEP 1 — Search carpages.ca for individual listings:
+Search query: "${vehicle} for sale British Columbia dealership site:carpages.ca"
+Look for URLs like: https://www.carpages.ca/used-cars/british-columbia/surrey/2019-toyota-rav4-12769958/
 
-Calcula el precio promedio de mercado (Retail Average).
+STEP 2 — Search autotrader.ca for individual listings:
+Search query: "${vehicle} for sale BC dealer autotrader"
+Look for URLs like: https://www.autotrader.ca/offers/toyota-rav-4-xle-awd-gasoline-04962035-c306-4183-9e13-34de47ddafa2
 
-Al final incluye este bloque JSON con los datos estructurados (sin inventar URLs — solo listings reales encontrados):
+CRITICAL URL RULES — reject any URL that does not link to ONE specific vehicle:
+❌ REJECT: https://www.autotrader.ca/cars/toyota/rav4/2019/bc/ (search page)
+❌ REJECT: https://www.autotrader.ca/cars/toyota/rav4/2019/ (search page)
+❌ REJECT: https://www.carpages.ca/british-columbia/toyota-rav4/ (search page)
+✅ ACCEPT: https://www.carpages.ca/used-cars/british-columbia/surrey/2019-toyota-rav4-12769958/ (has numeric ID)
+✅ ACCEPT: https://www.autotrader.ca/offers/toyota-rav-4-xle-04962035-c306-4183-9e13-34de47ddafa2 (has UUID)
+
+If you cannot find individual listing URLs with unique IDs, say so honestly — do not include search page URLs.
+BC dealerships only. No private sales.
+
+At the end include this JSON block:
 \`\`\`json
 {
   "listings": [
     {
-      "dealer": "Nombre del dealer",
-      "price": 29466,
-      "km": 45000,
-      "url": "https://link-directo-al-anuncio-individual/",
-      "source": "AutoTrader.ca"
+      "dealer": "OpenRoad Toyota Peace Arch",
+      "price": 33989,
+      "km": 93256,
+      "url": "https://www.carpages.ca/used-cars/british-columbia/surrey/2019-toyota-rav4-12769958/",
+      "source": "CarpageS.ca"
     }
   ],
-  "retailAverage": 29466
+  "retailAverage": 33989
 }
 \`\`\``;
 
