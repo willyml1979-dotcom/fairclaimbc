@@ -826,102 +826,31 @@ function DiagnosticForm({ state, set, device, onReveal }) {
     let apiError = null;
 
     try {
-      const vehicle   = `${state.year} ${state.make} ${state.modelOther || state.model}${state.trim ? " " + state.trim : ""}`;
-      const kmLine    = state.km    ? `\nMileage: ${state.km} km`        : "";
-      const offerLine = state.offer ? `\nICBC Offer: $${state.offer} CAD` : "";
-      const KM_FACTOR = 0.15;
-      const WORKER    = "https://fairclaimbc-api.willyml1979.workers.dev";
+      const WORKER = "https://fairclaimbc-api.willyml1979.workers.dev";
 
-      const prompt = `Actúa como un perito valuador de vehículos profesional en British Columbia, experto en la determinación del Actual Cash Value (ACV) según la Insurance (Vehicle) Act.
-
-Necesito investigar el valor de mercado actual (Retail) para el siguiente vehículo:
-Vehículo: ${vehicle}${kmLine ? "\nKilometraje: " + state.km + " km" : ""}
-Ubicación: Lower Mainland / Coquitlam, BC${offerLine ? "\nOferta ICBC: $" + state.offer + " CAD" : ""}
-
-Instrucciones de búsqueda:
-- Busca ÚNICAMENTE en inventarios de concesionarios (dealerships) establecidos en BC
-- Ignora ventas privadas (sin Marketplace, Craigslist, Kijiji)
-- Busca en autotrader.ca, carpages.ca, clutch.ca y sitios de dealers de BC
-- Proporciona una lista de 3 a 5 vehículos similares que estén a la venta HOY MISMO
-- Para cada vehículo DEBES proporcionar el link DIRECTO al anuncio individual del vehículo específico — NO páginas de búsqueda o categorías
-
-IMPORTANTE sobre los links:
-- El link debe llevar DIRECTAMENTE al vehículo específico, no a una lista
-- Para AutoTrader: debe contener un UUID como "offers/toyota-rav4-04962035-c306-4183-9e13-34de47ddafa2" 
-- Para CarpageS: debe contener un ID numérico como "2019-toyota-rav4-12769958"
-- Si no encuentras el link exacto del vehículo individual, NO lo incluyas
-
-Para cada vehículo incluye: Precio de lista, Kilometraje, Nombre del concesionario, Link directo al anuncio.
-
-Calcula el precio promedio de mercado (Retail Average).
-
-Al final de tu respuesta incluye OBLIGATORIAMENTE este bloque JSON exacto:
-\`\`\`json
-{
-  "listings": [
-    {
-      "dealer": "Nombre exacto del dealer",
-      "price": 29466,
-      "km": 45000,
-      "url": "https://url-exacta-del-listing-individual/",
-      "source": "AutoTrader.ca"
-    }
-  ],
-  "retailAverage": 29466
-}
-\`\`\``;
-
-      const tools = [{
-        type: "web_search_20250305", name: "web_search", max_uses: 8,
-        user_location: { type: "approximate", city: "Vancouver", region: "British Columbia", country: "CA", timezone: "America/Vancouver" },
-        blocked_domains: ["facebook.com","kijiji.ca","craigslist.org","reddit.com","youtube.com"],
-      }];
-
-      // Single call — Worker handles the full multi-turn agentic loop internally
-      // Claude searches, reads pages, extracts real listings — same as Claude.ai chat
+      // Call Worker with action: "scan" — Worker uses Google Search (Serper.dev)
+      // to find real individual BC listing URLs, same as Claude.ai chat search
       const r1 = await fetch(WORKER, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 4000, tools,
-          messages: [{ role: "user", content: prompt }],
+          action: "scan",
+          year:   state.year,
+          make:   state.make,
+          model:  state.modelOther || state.model,
+          trim:   state.trim || "",
+          km:     state.km || "",
+          offer:  state.offer || "",
         }),
       });
-      const d1 = await r1.json();
-      console.log("[Scan] Final stop_reason:", d1.stop_reason);
 
-      // Extract text report from final response
-      let reportText = "";
-      for (const b of (d1.content || [])) { if (b.type === "text") reportText += b.text; }
-      console.log("[Scan] Report preview:", reportText.substring(0, 300));
+      apiData = await r1.json();
+      console.log("[Scan] Response:", JSON.stringify(apiData).substring(0, 200));
 
-      // Extract JSON block
-      const jm = reportText.match(/```json\s*([\s\S]*?)```/);
-      if (jm) {
-        const parsed = JSON.parse(jm[1]);
-        const userKm = parseInt((state.km||"").replace(/,/g,"")) || null;
-        const seenUrls = new Set();
-        const listings = (parsed.listings || []).filter(x => x.url && x.price).map(item => {
-          const cleanUrl = item.url.split("?")[0].replace(/\/+$/, "") + "/";
-          if (seenUrls.has(cleanUrl.toLowerCase())) return null;
-          seenUrls.add(cleanUrl.toLowerCase());
-          const rawPrice = parseInt(String(item.price).replace(/[,$]/g,"")) || 0;
-          if (rawPrice < 2000 || rawPrice > 300000) return null;
-          const compKm = parseInt(String(item.km||"").replace(/,/g,"")) || null;
-          let adjPrice = rawPrice, kmDelta = null, kmAdj = null;
-          if (userKm && compKm) { kmDelta = userKm - compKm; kmAdj = Math.round(kmDelta * KM_FACTOR); adjPrice = rawPrice + kmAdj; }
-          const source = cleanUrl.includes("autotrader") ? "AutoTrader.ca" : cleanUrl.includes("carpages") ? "CarpageS.ca" : cleanUrl.includes("clutch") ? "Clutch.ca" : "BC Dealers";
-          return { dealer: item.dealer||"BC Dealership", price: String(adjPrice), adjustedPrice: String(adjPrice), km: compKm?String(compKm):null, kmDelta, kmAdjustment: kmAdj, url: cleanUrl, source, verified: true };
-        }).filter(Boolean);
-
-        apiData = {
-          marketAvg: parsed.retailAverage || Math.round(listings.reduce((s,c)=>s+parseInt(c.adjustedPrice),0)/Math.max(listings.length,1)/5)*5,
-          sampleCount: listings.length, verifiedCount: listings.length,
-          region: "British Columbia", sources: [...new Set(listings.map(c=>c.source))],
-          bestComps: listings.slice(0,3), comps: listings.slice(0,5), report: reportText,
-        };
-      } else {
-        throw new Error("Claude no incluyó el bloque JSON en la respuesta. Intenta de nuevo.");
+      if (apiData.error) {
+        throw new Error(apiData.message || "Error en la búsqueda.");
       }
+
     } catch (err) {
       apiError = err;
       console.warn("[Scan] API error:", err);
@@ -943,24 +872,21 @@ Al final de tu respuesta incluye OBLIGATORIAMENTE este bloque JSON exacto:
 
       if (data.extendedSearch) setExtendedSearch(true);
 
-      let marketAvg, sampleCount, comps, region, sourceLabel;
-
-      if (data.error || !data.marketAvg || !data.comps?.length) {
+      if (!data.marketAvg || !data.comps?.length) {
         throw new Error(data.message || "No se encontraron listings reales en BC. Intenta de nuevo.");
-      } else {
-        marketAvg = data.marketAvg;
-        sampleCount = data.sampleCount;
-        region = data.region || "British Columbia";
-        sourceLabel = (data.sources || []).join(" + ") || "BC Dealerships";
-        comps = data.bestComps || data.comps || [];
-        comps = comps.map(c => ({
-          ...c,
-          price: c.adjustedPrice || c.price,
-        }));
       }
 
+      const marketAvg   = data.marketAvg;
+      const sampleCount = data.sampleCount;
+      const region      = data.region || "British Columbia";
+      const sourceLabel = (data.sources || []).join(" + ") || "BC Dealerships";
+      const comps       = (data.bestComps || data.comps || []).map(c => ({
+        ...c,
+        price: c.adjustedPrice || c.price,
+      }));
+
+      console.log("[Scan] Comps URLs:", comps.map(c => c.url));
       const scan = { marketAvg, sampleCount, region, steps: SCAN_STEPS, sourceLabel, verifiedCount: data?.verifiedCount || 0 };
-      console.log("[Scan] Final comps URLs:", comps.map(c => c.url));
       set({ ...state, scan, comps });
 
     } catch (err) {
