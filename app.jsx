@@ -832,84 +832,67 @@ function DiagnosticForm({ state, set, device, onReveal }) {
       const KM_FACTOR = 0.15;
       const WORKER    = "https://fairclaimbc-api.willyml1979.workers.dev";
 
-      const prompt = `You are a professional vehicle appraiser in British Columbia finding Actual Cash Value (ACV) comparables for an ICBC total loss dispute.
+      const prompt = `Actúa como un perito valuador de vehículos profesional en British Columbia, experto en la determinación del Actual Cash Value (ACV) según la Insurance (Vehicle) Act.
 
-Search for: ${vehicle}${kmLine ? " | " + kmLine.trim() : ""}
-Location: Lower Mainland / British Columbia, Canada${offerLine ? " | " + offerLine.trim() : ""}
+Necesito investigar el valor de mercado actual (Retail) para el siguiente vehículo:
+Vehículo: ${vehicle}${kmLine ? "\nKilometraje: " + state.km + " km" : ""}
+Ubicación: Lower Mainland / Coquitlam, BC${offerLine ? "\nOferta ICBC: $" + state.offer + " CAD" : ""}
 
-STEP 1 — Search carpages.ca for individual listings:
-Search query: "${vehicle} for sale British Columbia dealership site:carpages.ca"
-Look for URLs like: https://www.carpages.ca/used-cars/british-columbia/surrey/2019-toyota-rav4-12769958/
+Instrucciones de búsqueda:
+- Busca ÚNICAMENTE en inventarios de concesionarios (dealerships) establecidos en BC
+- Ignora ventas privadas (sin Marketplace, Craigslist, Kijiji)
+- Busca en autotrader.ca, carpages.ca, clutch.ca y sitios de dealers de BC
+- Proporciona una lista de 3 a 5 vehículos similares que estén a la venta HOY MISMO
+- Para cada vehículo DEBES proporcionar el link DIRECTO al anuncio individual del vehículo específico — NO páginas de búsqueda o categorías
 
-STEP 2 — Search autotrader.ca for individual listings:
-Search query: "${vehicle} for sale BC dealer autotrader"
-Look for URLs like: https://www.autotrader.ca/offers/toyota-rav-4-xle-awd-gasoline-04962035-c306-4183-9e13-34de47ddafa2
+IMPORTANTE sobre los links:
+- El link debe llevar DIRECTAMENTE al vehículo específico, no a una lista
+- Para AutoTrader: debe contener un UUID como "offers/toyota-rav4-04962035-c306-4183-9e13-34de47ddafa2" 
+- Para CarpageS: debe contener un ID numérico como "2019-toyota-rav4-12769958"
+- Si no encuentras el link exacto del vehículo individual, NO lo incluyas
 
-CRITICAL URL RULES — reject any URL that does not link to ONE specific vehicle:
-❌ REJECT: https://www.autotrader.ca/cars/toyota/rav4/2019/bc/ (search page)
-❌ REJECT: https://www.autotrader.ca/cars/toyota/rav4/2019/ (search page)
-❌ REJECT: https://www.carpages.ca/british-columbia/toyota-rav4/ (search page)
-✅ ACCEPT: https://www.carpages.ca/used-cars/british-columbia/surrey/2019-toyota-rav4-12769958/ (has numeric ID)
-✅ ACCEPT: https://www.autotrader.ca/offers/toyota-rav-4-xle-04962035-c306-4183-9e13-34de47ddafa2 (has UUID)
+Para cada vehículo incluye: Precio de lista, Kilometraje, Nombre del concesionario, Link directo al anuncio.
 
-If you cannot find individual listing URLs with unique IDs, say so honestly — do not include search page URLs.
-BC dealerships only. No private sales.
+Calcula el precio promedio de mercado (Retail Average).
 
-At the end include this JSON block:
+Al final de tu respuesta incluye OBLIGATORIAMENTE este bloque JSON exacto:
 \`\`\`json
 {
   "listings": [
     {
-      "dealer": "OpenRoad Toyota Peace Arch",
-      "price": 33989,
-      "km": 93256,
-      "url": "https://www.carpages.ca/used-cars/british-columbia/surrey/2019-toyota-rav4-12769958/",
-      "source": "CarpageS.ca"
+      "dealer": "Nombre exacto del dealer",
+      "price": 29466,
+      "km": 45000,
+      "url": "https://url-exacta-del-listing-individual/",
+      "source": "AutoTrader.ca"
     }
   ],
-  "retailAverage": 33989
+  "retailAverage": 29466
 }
 \`\`\``;
 
       const tools = [{
-        type: "web_search_20250305", name: "web_search", max_uses: 5,
+        type: "web_search_20250305", name: "web_search", max_uses: 8,
         user_location: { type: "approximate", city: "Vancouver", region: "British Columbia", country: "CA", timezone: "America/Vancouver" },
         blocked_domains: ["facebook.com","kijiji.ca","craigslist.org","reddit.com","youtube.com"],
       }];
 
-      // First call
+      // Single call — Worker handles the full multi-turn agentic loop internally
+      // Claude searches, reads pages, extracts real listings — same as Claude.ai chat
       const r1 = await fetch(WORKER, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 3000, tools, messages: [{ role: "user", content: prompt }] }),
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6", max_tokens: 4000, tools,
+          messages: [{ role: "user", content: prompt }],
+        }),
       });
-      let d1 = await r1.json();
-      console.log("[Scan] Turn 1 stop_reason:", d1.stop_reason);
+      const d1 = await r1.json();
+      console.log("[Scan] Final stop_reason:", d1.stop_reason);
 
-      // If Claude used tools, send results back for final response
-      if (d1.stop_reason === "tool_use") {
-        const toolResults = (d1.content || []).filter(b => b.type === "tool_use").map(b => ({
-          type: "tool_result", tool_use_id: b.id,
-          content: Array.isArray(b.content) ? b.content : (b.content || "Search completed"),
-        }));
-        const r2 = await fetch(WORKER, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "claude-sonnet-4-6", max_tokens: 3000, tools,
-            messages: [
-              { role: "user", content: prompt },
-              { role: "assistant", content: d1.content },
-              { role: "user", content: toolResults },
-            ],
-          }),
-        });
-        d1 = await r2.json();
-        console.log("[Scan] Turn 2 stop_reason:", d1.stop_reason);
-      }
-
-      // Extract text report
+      // Extract text report from final response
       let reportText = "";
       for (const b of (d1.content || [])) { if (b.type === "text") reportText += b.text; }
-      console.log("[Scan] Report preview:", reportText.substring(0, 200));
+      console.log("[Scan] Report preview:", reportText.substring(0, 300));
 
       // Extract JSON block
       const jm = reportText.match(/```json\s*([\s\S]*?)```/);
@@ -977,6 +960,7 @@ At the end include this JSON block:
       }
 
       const scan = { marketAvg, sampleCount, region, steps: SCAN_STEPS, sourceLabel, verifiedCount: data?.verifiedCount || 0 };
+      console.log("[Scan] Final comps URLs:", comps.map(c => c.url));
       set({ ...state, scan, comps });
 
     } catch (err) {
