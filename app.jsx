@@ -888,14 +888,50 @@ Al final incluye este bloque JSON con los datos estructurados (sin inventar URLs
       });
 
       const anthropicData = await anthropicRes.json();
+      console.log("[Debug] Stop reason:", anthropicData.stop_reason, "Content blocks:", anthropicData.content?.length);
 
-      // Extract text from response
+      // Handle multi-turn: if Claude used tools, send results back and get final response
+      let finalData = anthropicData;
+      if (anthropicData.stop_reason === "tool_use") {
+        console.log("[Debug] Claude used tools — sending tool results back...");
+        const toolResults = (anthropicData.content || [])
+          .filter(b => b.type === "tool_use")
+          .map(b => ({
+            type: "tool_result",
+            tool_use_id: b.id,
+            content: b.content || "Search completed",
+          }));
+
+        const followUpRes = await fetch("https://fairclaimbc-api.willyml1979.workers.dev", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-6",
+            max_tokens: 3000,
+            tools: [{
+              type: "web_search_20250305",
+              name: "web_search",
+              max_uses: 5,
+              user_location: { type: "approximate", city: "Vancouver", region: "British Columbia", country: "CA", timezone: "America/Vancouver" },
+              blocked_domains: ["facebook.com","kijiji.ca","craigslist.org","reddit.com","youtube.com"],
+            }],
+            messages: [
+              { role: "user", content: prompt },
+              { role: "assistant", content: anthropicData.content },
+              { role: "user", content: toolResults },
+            ],
+          }),
+        });
+        finalData = await followUpRes.json();
+        console.log("[Debug] Follow-up stop reason:", finalData.stop_reason);
+      }
+
+      // Extract text from final response
       let reportText = "";
-      console.log("[Debug] Full Anthropic response:", JSON.stringify(anthropicData).substring(0, 2000));
-      for (const block of (anthropicData.content || [])) {
+      for (const block of (finalData.content || [])) {
         if (block.type === "text") reportText += block.text;
       }
-      console.log("[Debug] Report text:", reportText.substring(0, 500));
+      console.log("[Debug] Report text preview:", reportText.substring(0, 300));
 
       // Extract JSON block from report
       const jsonMatch = reportText.match(/```json\s*([\s\S]*?)```/);
