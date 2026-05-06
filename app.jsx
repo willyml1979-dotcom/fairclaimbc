@@ -1,5 +1,4 @@
 // app.jsx — FairClaimBC: warmer, more crafted SPA
-window.ANTHROPIC_API_KEY = "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";
 
 // ─────────────────────────────────────────────────────────────
 // THEMES — "warm" (default trust-house) and "bcgov" (BC government adjacent)
@@ -831,6 +830,7 @@ function DiagnosticForm({ state, set, device, onReveal }) {
       const kmLine    = state.km    ? `\nMileage: ${state.km} km`        : "";
       const offerLine = state.offer ? `\nICBC Offer: $${state.offer} CAD` : "";
       const KM_FACTOR = 0.15;
+      const WORKER    = "https://fairclaimbc-api.willyml1979.workers.dev";
 
       const prompt = `Actúa como un perito valuador de vehículos profesional en British Columbia, experto en la determinación del Actual Cash Value (ACV) según la Insurance (Vehicle) Act.
 
@@ -862,139 +862,73 @@ Al final incluye este bloque JSON con los datos estructurados (sin inventar URLs
 }
 \`\`\``;
 
-      const anthropicRes = await fetch("https://fairclaimbc-api.willyml1979.workers.dev", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model:      "claude-sonnet-4-6",
-          max_tokens: 3000,
-          tools: [{
-            type:      "web_search_20250305",
-            name:      "web_search",
-            max_uses:  5,
-            user_location: {
-              type:     "approximate",
-              city:     "Vancouver",
-              region:   "British Columbia",
-              country:  "CA",
-              timezone: "America/Vancouver",
-            },
-            blocked_domains: ["facebook.com","kijiji.ca","craigslist.org","reddit.com","youtube.com"],
-          }],
-          messages: [{ role: "user", content: prompt }],
-        }),
+      const tools = [{
+        type: "web_search_20250305", name: "web_search", max_uses: 5,
+        user_location: { type: "approximate", city: "Vancouver", region: "British Columbia", country: "CA", timezone: "America/Vancouver" },
+        blocked_domains: ["facebook.com","kijiji.ca","craigslist.org","reddit.com","youtube.com"],
+      }];
+
+      // First call
+      const r1 = await fetch(WORKER, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 3000, tools, messages: [{ role: "user", content: prompt }] }),
       });
+      let d1 = await r1.json();
+      console.log("[Scan] Turn 1 stop_reason:", d1.stop_reason);
 
-      const anthropicData = await anthropicRes.json();
-      console.log("[Debug] Stop reason:", anthropicData.stop_reason, "Content blocks:", anthropicData.content?.length);
-
-      // Handle multi-turn: if Claude used tools, send results back and get final response
-      let finalData = anthropicData;
-      if (anthropicData.stop_reason === "tool_use") {
-        console.log("[Debug] Claude used tools — sending tool results back...");
-        const toolResults = (anthropicData.content || [])
-          .filter(b => b.type === "tool_use")
-          .map(b => ({
-            type: "tool_result",
-            tool_use_id: b.id,
-            content: b.content || "Search completed",
-          }));
-
-        const followUpRes = await fetch("https://fairclaimbc-api.willyml1979.workers.dev", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+      // If Claude used tools, send results back for final response
+      if (d1.stop_reason === "tool_use") {
+        const toolResults = (d1.content || []).filter(b => b.type === "tool_use").map(b => ({
+          type: "tool_result", tool_use_id: b.id,
+          content: Array.isArray(b.content) ? b.content : (b.content || "Search completed"),
+        }));
+        const r2 = await fetch(WORKER, {
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "claude-sonnet-4-6",
-            max_tokens: 3000,
-            tools: [{
-              type: "web_search_20250305",
-              name: "web_search",
-              max_uses: 5,
-              user_location: { type: "approximate", city: "Vancouver", region: "British Columbia", country: "CA", timezone: "America/Vancouver" },
-              blocked_domains: ["facebook.com","kijiji.ca","craigslist.org","reddit.com","youtube.com"],
-            }],
+            model: "claude-sonnet-4-6", max_tokens: 3000, tools,
             messages: [
               { role: "user", content: prompt },
-              { role: "assistant", content: anthropicData.content },
+              { role: "assistant", content: d1.content },
               { role: "user", content: toolResults },
             ],
           }),
         });
-        finalData = await followUpRes.json();
-        console.log("[Debug] Follow-up stop reason:", finalData.stop_reason);
+        d1 = await r2.json();
+        console.log("[Scan] Turn 2 stop_reason:", d1.stop_reason);
       }
 
-      // Extract text from final response
+      // Extract text report
       let reportText = "";
-      for (const block of (finalData.content || [])) {
-        if (block.type === "text") reportText += block.text;
-      }
-      console.log("[Debug] Report text preview:", reportText.substring(0, 300));
+      for (const b of (d1.content || [])) { if (b.type === "text") reportText += b.text; }
+      console.log("[Scan] Report preview:", reportText.substring(0, 200));
 
-      // Extract JSON block from report
-      const jsonMatch = reportText.match(/```json\s*([\s\S]*?)```/);
-      if (jsonMatch) {
-        try {
-          const parsed      = JSON.parse(jsonMatch[1]);
-          const rawListings = parsed.listings || [];
-          const retailAvg   = parsed.retailAverage;
-          const userKm      = parseInt((state.km || "").replace(/,/g,"")) || null;
-          const seenUrls    = new Set();
+      // Extract JSON block
+      const jm = reportText.match(/```json\s*([\s\S]*?)```/);
+      if (jm) {
+        const parsed = JSON.parse(jm[1]);
+        const userKm = parseInt((state.km||"").replace(/,/g,"")) || null;
+        const seenUrls = new Set();
+        const listings = (parsed.listings || []).filter(x => x.url && x.price).map(item => {
+          const cleanUrl = item.url.split("?")[0].replace(/\/+$/, "") + "/";
+          if (seenUrls.has(cleanUrl.toLowerCase())) return null;
+          seenUrls.add(cleanUrl.toLowerCase());
+          const rawPrice = parseInt(String(item.price).replace(/[,$]/g,"")) || 0;
+          if (rawPrice < 2000 || rawPrice > 300000) return null;
+          const compKm = parseInt(String(item.km||"").replace(/,/g,"")) || null;
+          let adjPrice = rawPrice, kmDelta = null, kmAdj = null;
+          if (userKm && compKm) { kmDelta = userKm - compKm; kmAdj = Math.round(kmDelta * KM_FACTOR); adjPrice = rawPrice + kmAdj; }
+          const source = cleanUrl.includes("autotrader") ? "AutoTrader.ca" : cleanUrl.includes("carpages") ? "CarpageS.ca" : cleanUrl.includes("clutch") ? "Clutch.ca" : "BC Dealers";
+          return { dealer: item.dealer||"BC Dealership", price: String(adjPrice), adjustedPrice: String(adjPrice), km: compKm?String(compKm):null, kmDelta, kmAdjustment: kmAdj, url: cleanUrl, source, verified: true };
+        }).filter(Boolean);
 
-          const structuredListings = rawListings
-            .filter(item => item.url && item.price)
-            .map(item => {
-              const cleanUrl = item.url.split("?")[0].replace(/\/+$/, "") + "/";
-              if (seenUrls.has(cleanUrl.toLowerCase())) return null;
-              seenUrls.add(cleanUrl.toLowerCase());
-
-              const rawPrice = parseInt(String(item.price).replace(/[,$]/g,"")) || 0;
-              if (rawPrice < 2000 || rawPrice > 300000) return null;
-
-              const compKm = parseInt(String(item.km||"").replace(/,/g,"")) || null;
-              let adjPrice = rawPrice;
-              let kmDelta = null, kmAdj = null;
-              if (userKm && compKm) {
-                kmDelta  = userKm - compKm;
-                kmAdj    = Math.round(kmDelta * KM_FACTOR);
-                adjPrice = rawPrice + kmAdj;
-              }
-
-              const source = cleanUrl.includes("autotrader") ? "AutoTrader.ca"
-                           : cleanUrl.includes("carpages")   ? "CarpageS.ca"
-                           : cleanUrl.includes("clutch")     ? "Clutch.ca"
-                           : "BC Dealers";
-              return {
-                dealer:        item.dealer || "BC Dealership",
-                price:         String(adjPrice),
-                adjustedPrice: String(adjPrice),
-                km:            compKm ? String(compKm) : null,
-                kmDelta, kmAdjustment: kmAdj,
-                url:           cleanUrl,
-                source,
-                verified:      true,
-              };
-            })
-            .filter(Boolean);
-
-          apiData = {
-            marketAvg:     retailAvg || Math.round(structuredListings.reduce((s,c)=>s+parseInt(c.adjustedPrice),0)/Math.max(structuredListings.length,1)/5)*5,
-            sampleCount:   structuredListings.length,
-            verifiedCount: structuredListings.length,
-            region:        "British Columbia",
-            sources:       [...new Set(structuredListings.map(c=>c.source))],
-            bestComps:     structuredListings.slice(0,3),
-            comps:         structuredListings.slice(0,5),
-            report:        reportText,
-          };
-        } catch(e) {
-          console.warn("[Scan] JSON parse error:", e);
-          apiError = new Error("No se pudieron extraer listings del reporte.");
-        }
+        apiData = {
+          marketAvg: parsed.retailAverage || Math.round(listings.reduce((s,c)=>s+parseInt(c.adjustedPrice),0)/Math.max(listings.length,1)/5)*5,
+          sampleCount: listings.length, verifiedCount: listings.length,
+          region: "British Columbia", sources: [...new Set(listings.map(c=>c.source))],
+          bestComps: listings.slice(0,3), comps: listings.slice(0,5), report: reportText,
+        };
       } else {
-        apiError = new Error("Claude no devolvió listings estructurados.");
+        throw new Error("Claude no incluyó el bloque JSON en la respuesta. Intenta de nuevo.");
       }
     } catch (err) {
       apiError = err;
@@ -1020,7 +954,6 @@ Al final incluye este bloque JSON con los datos estructurados (sin inventar URLs
       let marketAvg, sampleCount, comps, region, sourceLabel;
 
       if (data.error || !data.marketAvg || !data.comps?.length) {
-        // No fake URLs — show honest error
         throw new Error(data.message || "No se encontraron listings reales en BC. Intenta de nuevo.");
       } else {
         marketAvg = data.marketAvg;
@@ -1039,8 +972,9 @@ Al final incluye este bloque JSON con los datos estructurados (sin inventar URLs
 
     } catch (err) {
       console.warn("[Scan] Error:", err);
-      // Show honest error — no fake URLs, no invented prices
-      alert("No se encontraron listings reales en BC en este momento. Por favor intenta de nuevo en unos segundos.\n\nDetalle: " + (err.message || err));
+      alert("No se encontraron listings reales en BC.\n\nDetalle: " + (err.message || err));
+      setScanning(false);
+      return;
     } finally {
       setScanning(false);
     }
