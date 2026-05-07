@@ -765,7 +765,7 @@ function ICBCShieldApp({ device, heroVariant, price, letterTone, showTrustBar })
         />
       )}
 
-      {/* Free Launch Celebration Modal */}
+      {/* Free Launch Celebration Modal — always show, regardless of gap */}
       {showCheckout && !paid && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 1000,
@@ -885,4 +885,4 @@ function Root() {
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<Root/>);
 
-// v5
+// v6
