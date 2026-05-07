@@ -712,13 +712,13 @@ function ICBCShieldApp({ device, heroVariant, price, letterTone, showTrustBar })
   }, [screen]);
 
   const scrollToId = (id) => {
-    const el = containerRef.current?.querySelector(`#${id}`);
-    if (el) {
-      const top = el.offsetTop;
-      containerRef.current.scrollTo({ top: Math.max(0, top - 12), behavior: "smooth" });
-    }
+    const el = document.getElementById(id) || containerRef.current?.querySelector("#" + id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
-  const jumpToForm = () => scrollToId("diagnostic");
+  const jumpToForm = () => {
+    // Small delay so React finishes rendering before scroll
+    setTimeout(() => scrollToId("diagnostic"), 50);
+  };
 
   return (
     <div ref={containerRef} className="icbc-scroll" style={{
@@ -884,3 +884,5 @@ function Root() {
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<Root/>);
+
+// v5
