@@ -803,16 +803,9 @@ function DiagnosticForm({ state, set, device, onReveal }) {
     const scanStartTime = Date.now();
 
     const SCAN_STEPS = [
-      "Iniciando conexion con bases de datos de vehiculos en BC...",
-      "Consultando Autotrader.ca — buscando listados de agencias en BC...",
-      "Consultando Clutch.ca, CarGurus y CarpageS.ca...",
-      "Verificando links en vivo (HEAD request) — solo status 200 pasa...",
-      "Validando dominio del concesionario en cada URL encontrada...",
-      "Verificando precios publicados en portales oficiales de dealers...",
-      "Extrayendo precio de lista y kilometraje de cada vehiculo...",
-      "Ajustando precios por diferencia de kilometraje ($0.15 CAD/km)...",
-      "Seleccionando los 3 comparables mas cercanos a tu vehiculo...",
-      "Calculando ACV final — promedio de los 3 mejores comparables...",
+      "Searching BC dealer listings for your vehicle...",
+      "Verifying prices and availability in your area...",
+      "Calculating your market value gap...",
     ];
 
     // Step animation — advances every 1100ms = 11 steps x 1100ms = ~11s
@@ -820,7 +813,7 @@ function DiagnosticForm({ state, set, device, onReveal }) {
     const stepTimer = setInterval(() => {
       stepIdx = Math.min(stepIdx + 1, SCAN_STEPS.length - 1);
       setScanStep(stepIdx);
-    }, 1100);
+    }, 3500);
 
     let apiData = null;
     let apiError = null;
@@ -882,7 +875,9 @@ function DiagnosticForm({ state, set, device, onReveal }) {
       const sourceLabel = (data.sources || []).join(" + ") || "BC Dealerships";
       const comps       = (data.bestComps || data.comps || []).map(c => ({
         ...c,
-        price: c.adjustedPrice || c.price,
+        // Keep original listing price — km adjustment shown separately
+        price: c.price,
+        adjustedPrice: c.adjustedPrice || c.price,
       }));
 
       console.log("[Scan] Comps URLs:", comps.map(c => c.url));
@@ -1079,16 +1074,9 @@ function DiagnosticForm({ state, set, device, onReveal }) {
 
               {/* Step list */}
               {[
-                "Iniciando conexion con bases de datos de vehiculos en BC...",
-                "Consultando Autotrader.ca — buscando listados de agencias en BC...",
-                "Consultando Clutch.ca, CarGurus y CarpageS.ca...",
-                "Verificando links en vivo (HEAD request) — solo status 200 pasa...",
-                "Validando dominio del concesionario en cada URL encontrada...",
-                "Verificando precios publicados en portales oficiales de dealers...",
-                "Extrayendo precio de lista y kilometraje de cada vehiculo...",
-                "Ajustando precios por diferencia de kilometraje ($0.15 CAD/km)...",
-                "Seleccionando los 3 comparables mas cercanos a tu vehiculo...",
-                "Calculando ACV final — promedio de los 3 mejores comparables...",
+                "Searching BC dealer listings for your vehicle...",
+                "Verifying prices and availability in your area...",
+                "Calculating your market value gap...",
               ].map((t, i) => (
                 <div key={i} style={{
                   display: "flex", alignItems: "center", gap: 10,
@@ -1264,16 +1252,25 @@ function LockedScanResult({ scan, recovery, recoveryPct, offer, device, onUnlock
             boxShadow: `0 6px 20px -6px ${C.gold}99`,
           }}>{Icon.lock(20, "#fff")}</div>
           <div style={{ font: `700 17px ${SERIF}`, color: C.navy, letterSpacing: "-.01em" }}>
-            Unlock your full Delta Report + dispute letter
+            Get your full Delta Report + dispute letter
           </div>
           <div style={{ font: `400 13px/1.5 ${SANS}`, color: C.steel, maxWidth: 420 }}>
-            See the 3 strongest comparables, full ACV breakdown, and the 2-page settlement-grade letter ready to send to ICBC.
+            See all comparable listings found, your full ACV breakdown, and a 2-page settlement-grade letter ready to send to ICBC.
           </div>
-          <Btn size="lg" variant="accent" onClick={onUnlock}>
-            Unlock for $49, money-back guarantee {Icon.arrow(13, "#fff")}
-          </Btn>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+            <Btn size="lg" variant="gold" onClick={onUnlock} style={{ fontSize: 16, fontWeight: 700, letterSpacing: ".01em" }}>
+              {Icon.sparkle(15, "#fff")} Get my free report today {Icon.arrow(14, "#fff")}
+            </Btn>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "5px 14px", background: C.goodSoft, borderRadius: 999,
+              font: `600 11.5px ${SANS}`, color: C.good,
+            }}>
+              {Icon.check(11, C.good)} Free during our launch period — normally $49
+            </div>
+          </div>
           <div style={{ font: `400 11.5px ${SANS}`, color: C.steel, display: "inline-flex", alignItems: "center", gap: 6 }}>
-            {Icon.lock(11, C.steel)} No charge until you unlock. Full refund if ICBC doesn't revise their offer.
+            {Icon.lock(11, C.steel)} No credit card required. No sign-up needed.
           </div>
         </div>
       </div>
@@ -1684,4 +1681,3 @@ Object.assign(window, {
   Header, TrustBar, Hero, HeroIllustration, DiagnosticForm, ComparableRow, LiveDelta, LockedScanResult,
   KnowYourRights, Testimonials, HowItWorks, FAQSection, Footer,
 });
-// v3
