@@ -784,6 +784,9 @@ function DiagnosticForm({ state, set, device, onReveal }) {
   const [scanning, setScanning] = React.useState(false);
   const [scanStep, setScanStep] = React.useState(0);
   const [extendedSearch, setExtendedSearch] = React.useState(false);
+  const [noResults, setNoResults] = React.useState(false);
+  const [notifyEmail, setNotifyEmail] = React.useState("");
+  const [notifySubmitted, setNotifySubmitted] = React.useState(false);
 
   const modelOptions = MODELS_FOR(state.make);
   const trimOptions = TRIMS_FOR(state.make, state.model);
@@ -866,7 +869,9 @@ function DiagnosticForm({ state, set, device, onReveal }) {
       if (data.extendedSearch) setExtendedSearch(true);
 
       if (!data.marketAvg || !data.comps?.length) {
-        throw new Error(data.message || "No se encontraron listings reales en BC. Intenta de nuevo.");
+        setNoResults(true);
+        setScanning(false);
+        return;
       }
 
       const marketAvg   = data.marketAvg;
@@ -886,7 +891,7 @@ function DiagnosticForm({ state, set, device, onReveal }) {
 
     } catch (err) {
       console.warn("[Scan] Error:", err);
-      alert("No se encontraron listings reales en BC.\n\nDetalle: " + (err.message || err));
+      setNoResults(true);
       setScanning(false);
       return;
     } finally {
@@ -1055,7 +1060,7 @@ function DiagnosticForm({ state, set, device, onReveal }) {
                   animation: "icbcSpin 0.8s linear infinite",
                 }}/>
                 <span style={{ font: `700 13px ${SANS}`, color: C.gold, letterSpacing: ".06em", textTransform: "uppercase" }}>
-                  Escaneando el mercado de BC — por favor espera...
+                  Scanning the BC market — please wait...
                 </span>
               </div>
 
@@ -1107,7 +1112,7 @@ function DiagnosticForm({ state, set, device, onReveal }) {
                   display: "flex", alignItems: "center", gap: 8,
                 }}>
                   {Icon.sparkle(12, C.gold)}
-                  Pocos resultados en Metro Vancouver — ampliando a toda la provincia de BC...
+                  Few results in Metro Vancouver — expanding search to all of BC...
                 </div>
               )}
               <style>{`
@@ -1117,14 +1122,68 @@ function DiagnosticForm({ state, set, device, onReveal }) {
             </div>
           )}
 
-          {state.scan && !scanning && (
+          {/* No results — email capture */}
+          {noResults && !scanning && (
+            <div style={{
+              background: C.navy, borderRadius: 14, padding: "28px 24px",
+              display: "flex", flexDirection: "column", gap: 16, textAlign: "center",
+            }}>
+              <div style={{ fontSize: 36 }}>🔍</div>
+              <div style={{ font: `700 18px/1.3 ${SERIF}`, color: "#fff" }}>
+                No listings found for your vehicle
+              </div>
+              <div style={{ font: `400 13px/1.6 ${SANS}`, color: C.steelLight, maxWidth: 400, margin: "0 auto" }}>
+                We couldn't find comparable BC listings right now for your {state.year} {state.make} {state.model}. Leave your email and we'll research it manually and get back to you within 24 hours — at no cost.
+              </div>
+              {!notifySubmitted ? (
+                <div style={{ display: "flex", gap: 10, maxWidth: 400, margin: "0 auto", width: "100%", flexWrap: "wrap" }}>
+                  <input
+                    type="email"
+                    placeholder="your@email.com"
+                    value={notifyEmail}
+                    onChange={e => setNotifyEmail(e.target.value)}
+                    style={{
+                      flex: 1, minWidth: 200, padding: "10px 14px", borderRadius: 8,
+                      border: `1px solid rgba(255,255,255,0.2)`, background: "rgba(255,255,255,0.08)",
+                      color: "#fff", font: `400 14px ${SANS}`, outline: "none",
+                    }}
+                  />
+                  <Btn size="md" variant="gold" onClick={() => {
+                    if (!notifyEmail.includes("@")) return;
+                    // Send to a simple mailto or store — for now just confirm
+                    const subject = encodeURIComponent(`FairClaimBC Manual Research — ${state.year} ${state.make} ${state.model}`);
+                    const body = encodeURIComponent(
+                      `Vehicle: ${state.year} ${state.make} ${state.model} ${state.trim}\nKm: ${state.km}\nICBC Offer: $${state.offer}\nClaim #: ${state.claim}\nEmail: ${notifyEmail}`
+                    );
+                    window.open(`mailto:info@fairclaimbc.ca?subject=${subject}&body=${body}`);
+                    setNotifySubmitted(true);
+                  }}>
+                    Notify me
+                  </Btn>
+                </div>
+              ) : (
+                <div style={{
+                  padding: "12px 20px", borderRadius: 8, background: "rgba(15,107,79,0.2)",
+                  border: `1px solid ${C.good}44`, font: `500 13px ${SANS}`, color: C.good,
+                }}>
+                  ✓ Got it! We'll research your {state.year} {state.make} {state.model} and email you at {notifyEmail} within 24 hours.
+                </div>
+              )}
+              <button onClick={() => { setNoResults(false); setNotifySubmitted(false); setNotifyEmail(""); }}
+                style={{ background: "none", border: "none", cursor: "pointer", font: `400 12px ${SANS}`, color: C.steelLight }}>
+                ← Try a different vehicle
+              </button>
+            </div>
+          )}
+
+          {state.scan && !scanning && !noResults && (
             <LockedScanResult
               scan={state.scan}
               recovery={recovery}
               recoveryPct={recoveryPct}
               offer={offerN}
               device={device}
-              onUnlock={() => onReveal(computeDelta({ offer: state.offer, comps: state.comps }))}
+              onUnlock={() => onReveal(computeDelta({ offer: state.offer, comps: state.comps, marketAvg: state.scan?.marketAvg }))}
               onRescan={() => set({ ...state, scan: null })}
             />
           )}
