@@ -56,18 +56,47 @@ function DeltaReport({ state, delta, device, onPay, onShowCheckout, onBack, pric
           <div style={{ font: `500 13px ${SANS}`, color: C.steelLight, marginBottom: 12 }}>
             For your {state.year} {state.make} {state.model}
           </div>
-          <div style={{ font: `400 16px ${SANS}`, color: C.steelLight, marginBottom: 20 }}>
-            You're leaving on the table
-          </div>
-          <BigNumber n={delta.gap} device={device}/>
-          <div style={{ marginTop: 24, font: `400 15px/1.6 ${SANS}`, color: C.steelLight, maxWidth: 560, marginLeft: "auto", marginRight: "auto" }}>
-            Your offer is{" "}
-            <span style={{ color: "#fff", fontWeight: 700 }}>
-              {Math.abs(delta.gapPct).toFixed(1)}% {delta.gap > 0 ? "below" : "above"}
-            </span>{" "}
-            the BC market average from your {delta.prices.length} comparables.
-            <br/><span style={{ color: C.gold, fontWeight: 600 }}>You have technical grounds for a successful dispute.</span>
-          </div>
+          {delta.gap < 500 ? (
+            /* ── Fair offer — celebrate ── */
+            <>
+              <div style={{ fontSize: 52, lineHeight: 1, marginBottom: 8 }}>🎉</div>
+              <div style={{ font: `700 32px/1.2 ${SERIF}`, color: "#fff", letterSpacing: "-.02em", marginBottom: 16 }}>
+                ICBC's offer looks fair!
+              </div>
+              <div style={{ font: `400 16px/1.6 ${SANS}`, color: C.steelLight, maxWidth: 500, marginLeft: "auto", marginRight: "auto" }}>
+                Based on {delta.prices.length} comparable{delta.prices.length !== 1 ? "s" : ""} in BC, your offer is{" "}
+                <span style={{ color: "#fff", fontWeight: 600 }}>within $500 of market value</span>.
+                {" "}That's a fair settlement — no dispute needed.
+              </div>
+              <div style={{
+                marginTop: 28, display: "inline-flex", alignItems: "center", gap: 8,
+                padding: "10px 20px", borderRadius: 999,
+                background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)",
+                font: `500 13px ${SANS}`, color: C.steelLight,
+              }}>
+                ✓ You're in good hands — accept with confidence
+              </div>
+            </>
+          ) : (
+            /* ── Real gap — show the money ── */
+            <>
+              <div style={{ font: `400 16px ${SANS}`, color: C.steelLight, marginBottom: 20 }}>
+                {delta.gap > 0 ? "You're leaving on the table" : "ICBC's offer is at or above market"}
+              </div>
+              <BigNumber n={delta.gap} device={device}/>
+              <div style={{ marginTop: 24, font: `400 15px/1.6 ${SANS}`, color: C.steelLight, maxWidth: 560, marginLeft: "auto", marginRight: "auto" }}>
+                Your offer is{" "}
+                <span style={{ color: "#fff", fontWeight: 700 }}>
+                  {Math.abs(delta.gapPct).toFixed(1)}% {delta.gap > 0 ? "below" : "above"}
+                </span>{" "}
+                the BC market average from your {delta.prices.length} comparable{delta.prices.length !== 1 ? "s" : ""}.
+                {delta.gap > 0
+                  ? <><br/><span style={{ color: C.gold, fontWeight: 600 }}>You have technical grounds for a successful dispute.</span></>
+                  : <><br/><span style={{ color: C.steelLight, fontWeight: 600 }}>We found limited comparables — consider trying a broader trim or year range.</span></>
+                }
+              </div>
+            </>
+          )}
 
           {/* Comparison bars */}
           <div style={{
@@ -350,7 +379,8 @@ function Stepper({ current, device }) {
 
 // Animated count-up for the big number
 function BigNumber({ n, device }) {
-  const target = Math.max(0, Math.round(n || 0));
+  const isNeg  = (n || 0) < 0;
+  const target = Math.round(Math.abs(n || 0));
   const [v, setV] = useState(0);
   useEffect(() => {
     let raf;
@@ -371,7 +401,9 @@ function BigNumber({ n, device }) {
       color: "#fff", letterSpacing: "-.045em", fontVariantNumeric: "tabular-nums",
       display: "inline-flex", alignItems: "baseline", gap: 8,
     }}>
-      <span style={{ color: C.gold, fontSize: device === "mobile" ? 36 : 60, fontWeight: 600 }}>+</span>
+      <span style={{ color: isNeg ? "#ef4444" : C.gold, fontSize: device === "mobile" ? 36 : 60, fontWeight: 600 }}>
+        {isNeg ? "−" : "+"}
+      </span>
       <span>{fmt(v)}</span>
     </div>
   );
@@ -700,15 +732,9 @@ function ICBCShieldApp({ device, heroVariant, price, letterTone, showTrustBar })
           {showTrustBar && <TrustBar device={device}/>}
           <DiagnosticForm device={device} state={state} set={setState}
             onReveal={(d) => {
-              if (paid) {
-                // Already paid — go directly to comparables
-                setDelta(d);
-                setScreen("delta");
-              } else {
-                // First time — show checkout before revealing comparables
-                setPendingDelta(d);
-                setShowCheckout(true);
-              }
+              // Show free celebration modal first
+              setPendingDelta(d);
+              setShowCheckout(true);
             }}
           />
           <KnowYourRights device={device}/>
@@ -725,8 +751,8 @@ function ICBCShieldApp({ device, heroVariant, price, letterTone, showTrustBar })
           paid={paid}
           onPay={() => setScreen("letter")}  // only reached when already paid
           onShowCheckout={() => {
-            // Delta screen → user clicks "Generate my letter" without having paid
-            setShowCheckout(true);
+            // Free during launch — go directly to letter
+            setScreen("letter");
           }}
           onBack={() => setScreen("landing")}
         />
@@ -739,23 +765,71 @@ function ICBCShieldApp({ device, heroVariant, price, letterTone, showTrustBar })
         />
       )}
 
-      {/* Checkout — only fires once, from the Unlock button */}
+      {/* Free Launch Celebration Modal */}
       {showCheckout && !paid && (
-        <Checkout
-          price={price} state={state} delta={pendingDelta || delta}
-          onClose={() => { setShowCheckout(false); setPendingDelta(null); }}
-          onPaid={() => {
-            setPaid(true);
-            setShowCheckout(false);
-            // Only update delta if we have a pendingDelta (checkout from landing page).
-            // If opened from delta screen, pendingDelta is null, so preserve existing delta.
-            if (pendingDelta) {
-              setDelta(pendingDelta);
-              setPendingDelta(null);
-            }
-            setScreen("delta");
-          }}
-        />
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "20px",
+          background: "rgba(14,42,71,0.55)",
+          backdropFilter: "blur(4px)",
+        }}
+        onClick={(e) => { if (e.target === e.currentTarget) { setShowCheckout(false); setPendingDelta(null); } }}
+        >
+          <div style={{
+            background: C.paper, borderRadius: 20, padding: "40px 36px",
+            maxWidth: 420, width: "100%", textAlign: "center",
+            boxShadow: "0 32px 80px -20px rgba(14,42,71,0.35)",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
+            animation: "popIn 0.25s cubic-bezier(0.34,1.56,0.64,1)",
+          }}>
+            <style>{`@keyframes popIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }`}</style>
+
+            {/* Celebration icon */}
+            <div style={{ fontSize: 52, lineHeight: 1 }}>🎉</div>
+
+            {/* Title */}
+            <div style={{ font: `700 24px/1.2 ${SERIF}`, color: C.navy, letterSpacing: "-.015em" }}>
+              Your report is free today!
+            </div>
+
+            {/* Subtitle */}
+            <div style={{ font: `400 14px/1.6 ${SANS}`, color: C.steel, maxWidth: 340 }}>
+              We're in launch mode — get your full Delta Report and dispute letter at no cost. Normally <span style={{ fontFamily: MONO, fontWeight: 700, color: C.navy }}>$49</span>.
+            </div>
+
+            {/* Value pills */}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+              {[
+                "✓ Full comparables report",
+                "✓ 2-page dispute letter",
+                "✓ No credit card",
+              ].map((item, i) => (
+                <span key={i} style={{
+                  padding: "5px 12px", borderRadius: 999,
+                  background: C.goodSoft, border: `1px solid ${C.good}33`,
+                  font: `500 12px ${SANS}`, color: C.good,
+                }}>{item}</span>
+              ))}
+            </div>
+
+            {/* CTA button */}
+            <Btn size="lg" variant="gold" full onClick={() => {
+              setPaid(true);
+              setShowCheckout(false);
+              if (pendingDelta) { setDelta(pendingDelta); setPendingDelta(null); }
+              setScreen("delta");
+            }} style={{ marginTop: 4, fontSize: 16 }}>
+              {Icon.sparkle(15, "#fff")} Unlock my free report {Icon.arrow(14, "#fff")}
+            </Btn>
+
+            {/* Close link */}
+            <button onClick={() => { setShowCheckout(false); setPendingDelta(null); }}
+              style={{ background: "none", border: "none", cursor: "pointer", font: `400 12px ${SANS}`, color: C.steel }}>
+              Maybe later
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -790,40 +864,21 @@ function CanvasApp() {
 }
 
 function Root() {
-  const [t, setTweak] = useTweaks(window.__TWEAKS_DEFAULTS);
-  // Apply theme palette before render so child components pick up the values.
+  const [t] = useTweaks(window.__TWEAKS_DEFAULTS);
   applyTheme(t.theme || "warm");
+
+  // Detect real device size — render app directly, no canvas
+  const isMobile = window.innerWidth < 768;
+  const device   = isMobile ? "mobile" : "desktop";
+
   return (
-    <>
-      <CanvasApp key={t.theme || "warm"}/>
-      <TweaksPanel>
-        <TweakSection label="Visual theme"/>
-        <TweakSelect label="Theme" value={t.theme || "warm"}
-          options={[
-            { value: "warm",  label: "Trust house (warm)" },
-            { value: "bcgov", label: "BC Gov adjacent" },
-          ]}
-          onChange={(v) => setTweak("theme", v)}/>
-        <TweakSection label="Pricing experiment"/>
-        <TweakSlider label="Price point" value={t.price} min={29} max={79} step={5} unit=" USD"
-          onChange={(v) => setTweak("price", v)}/>
-        <TweakSection label="Hero copy variant"/>
-        <TweakSelect label="Headline" value={t.heroVariant}
-          options={[
-            { value: "directQuestion", label: "Direct question" },
-            { value: "recoveryFocused", label: "Recovery focused" },
-            { value: "authoritative", label: "Authoritative" },
-          ]}
-          onChange={(v) => setTweak("heroVariant", v)}/>
-        <TweakSection label="Letter tone"/>
-        <TweakRadio label="Tone" value={t.letterTone}
-          options={["assertive", "measured"]}
-          onChange={(v) => setTweak("letterTone", v)}/>
-        <TweakSection label="Trust elements"/>
-        <TweakToggle label="Show stats bar" value={t.showTrustBar}
-          onChange={(v) => setTweak("showTrustBar", v)}/>
-      </TweaksPanel>
-    </>
+    <ICBCShieldApp
+      device={device}
+      heroVariant={t.heroVariant || "directQuestion"}
+      price={t.price || 49}
+      letterTone={t.letterTone || "assertive"}
+      showTrustBar={t.showTrustBar !== false}
+    />
   );
 }
 
