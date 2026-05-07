@@ -92,13 +92,15 @@ const parseNum = (s) => {
   return isFinite(n) && n > 0 ? n : null;
 };
 
-const computeDelta = ({ offer, comps }) => {
+const computeDelta = ({ offer, comps, marketAvg: precomputedAvg }) => {
   const offerN = parseNum(offer);
-  const prices = (comps || []).map(c => parseNum(c.price)).filter(Boolean);
+  // Use adjustedPrice for market average (km-normalized) — same as Worker calculation
+  const prices = (comps || []).map(c => parseNum(c.adjustedPrice || c.price)).filter(Boolean);
   if (!offerN || prices.length === 0) {
     return { offer: offerN, marketAvg: null, gap: null, gapPct: null, prices };
   }
-  const marketAvg = prices.reduce((a, b) => a + b, 0) / prices.length;
+  // Prefer pre-computed marketAvg from Worker (already km-adjusted and rounded)
+  const marketAvg = precomputedAvg || Math.round(prices.reduce((a, b) => a + b, 0) / prices.length / 5) * 5;
   const gap = marketAvg - offerN;
   const gapPct = (gap / offerN) * 100;
   return { offer: offerN, marketAvg, gap, gapPct, prices };
