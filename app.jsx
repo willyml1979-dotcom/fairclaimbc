@@ -1022,7 +1022,7 @@ function DiagnosticForm({ state, set, device, onReveal }) {
           </div>
 
           {/* STEP 3 — Scan & Compare (AI) */}
-          <FormStepHeader n="03" title="Scan the BC market" sub="Our AI compares against live BC dealer listings on Autotrader.ca, Clutch.ca, CarGurus and CarpageS.ca."/>
+          <FormStepHeader n="03" title="Scan the BC market" sub="Our AI searches for similar vehicles currently for sale in BC to determine if your offer is fair — or if you could recover more."/>
 
           {!state.scan && !scanning && (
             <div style={{
@@ -1740,3 +1740,5 @@ Object.assign(window, {
   Header, TrustBar, Hero, HeroIllustration, DiagnosticForm, ComparableRow, LiveDelta, LockedScanResult,
   KnowYourRights, Testimonials, HowItWorks, FAQSection, Footer,
 });
+
+// v5
