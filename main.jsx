@@ -268,7 +268,7 @@ function DeltaReport({ state, delta, device, onPay, onShowCheckout, onBack, pric
               · Generate the letter ·
             </div>
             <h3 style={{ margin: "0 0 12px", font: `700 ${isMobile ? 24 : 30}px/1.15 ${SERIF}`, color: "#fff", letterSpacing: "-.02em" }}>
-              Recover {fmt(delta.gap)}. Your dispute letter, ready in 90 seconds.
+              Your dispute letter — based on real BC market data.
             </h3>
             <p style={{ margin: 0, font: `400 14.5px/1.6 ${SANS}`, color: C.steelLight, maxWidth: 440 }}>
               A 2-page technical letter citing the Insurance (Vehicle) Act §152, your comparables, and a formal request for revised settlement.
@@ -281,7 +281,7 @@ function DeltaReport({ state, delta, device, onPay, onShowCheckout, onBack, pric
                 {Icon.check(12, C.gold)} Cited & formatted
               </span>
               <span style={{ font: `500 12.5px ${SANS}`, color: C.steelLight, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                {Icon.check(12, C.gold)} Money-back guarantee
+                {Icon.check(12, C.gold)} No sign-up required
               </span>
             </div>
           </div>
@@ -514,7 +514,7 @@ function Checkout({ price, onClose, onPaid, state, delta }) {
             font: `400 11.5px/1.5 ${SANS}`, color: C.steel, textAlign: "center", marginTop: 4,
             display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
           }}>
-            {Icon.lock(11, C.steel)} Secured by Stripe · 7-day money-back guarantee
+            {Icon.lock(11, C.steel)} Secured by Stripe · satisfaction guarantee
           </div>
         </form>
       </div>
@@ -570,7 +570,7 @@ function LetterScreen({ state, delta, device, tone, onRestart }) {
             Your dispute letter is ready.
           </h2>
           <p style={{ margin: "0 auto", font: `400 15px/1.55 ${SANS}`, color: C.steel, maxWidth: 580 }}>
-            Two pages, cited, and ready to send. Tone: <span style={{ color: C.navy, fontWeight: 600 }}>{tone === "assertive" ? "Assertive" : "Measured"}</span>.
+            Two pages, cited, and ready to review. Tone: <span style={{ color: C.navy, fontWeight: 600 }}>{tone === "assertive" ? "Assertive" : "Measured"}</span>.
             Reply to your adjuster's email and attach the PDF.
           </p>
         </div>
@@ -652,9 +652,8 @@ function LetterScreen({ state, delta, device, tone, onRestart }) {
                 {Icon.sparkle(12, C.gold)} What to do next
               </div>
               Reply to your adjuster's email and attach the PDF. Include your claim number in the subject line. ICBC must respond within 14 business days.
-              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4, font: `400 11.5px ${SANS}`, color: C.navy }}>
-                <span>ICBC Claims: <strong>1-800-910-4222</strong></span>
-                <span>Free escalation: <strong>civilresolutionbc.ca</strong></span>
+              <div style={{ marginTop: 10, font: `400 11.5px ${SANS}`, color: C.steel, fontStyle: "italic" }}>
+                Results are market estimates only. Individual outcomes may vary. Not legal advice.
               </div>
             </div>
 
@@ -875,4 +874,4 @@ function Root() {
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<Root/>);
 
-// v7
+// v8
