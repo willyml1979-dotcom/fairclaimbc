@@ -900,10 +900,8 @@ function DiagnosticForm({ state, set, device, onReveal }) {
   };
 
   const offerN = parseNum(state.offer);
-  // Use real (unadjusted) prices for recovery display — km adjustment is for ACV methodology only
-  const realPrices = (state.comps || []).map(c => parseNum(c.price)).filter(Boolean);
-  const realAvg = realPrices.length > 0 ? Math.round(realPrices.reduce((a,b) => a+b, 0) / realPrices.length / 5) * 5 : state.scan?.marketAvg;
-  const recovery = state.scan && offerN ? (realAvg || state.scan.marketAvg) - offerN : null;
+  // marketAvg from Worker = real listing prices (no km adjustment)
+  const recovery = state.scan && offerN ? state.scan.marketAvg - offerN : null;
   const recoveryPct = recovery && offerN ? (recovery / offerN) * 100 : null;
 
   const sampleData = () => {
@@ -1186,7 +1184,7 @@ function DiagnosticForm({ state, set, device, onReveal }) {
               recoveryPct={recoveryPct}
               offer={offerN}
               device={device}
-              onUnlock={() => onReveal(computeDelta({ offer: state.offer, comps: state.comps, marketAvg: realAvg || state.scan?.marketAvg }))}
+              onUnlock={() => onReveal(computeDelta({ offer: state.offer, comps: state.comps, marketAvg: state.scan?.marketAvg }))}
               onRescan={() => set({ ...state, scan: null })}
             />
           )}
@@ -1744,4 +1742,4 @@ Object.assign(window, {
   KnowYourRights, Testimonials, HowItWorks, FAQSection, Footer,
 });
 
-// v6
+// v7
