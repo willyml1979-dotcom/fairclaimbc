@@ -380,9 +380,7 @@ function Hero({ heroVariant, device, onStart }) {
             {[1,2,3,4,5].map(i => <span key={i}>{Icon.star(13, C.gold)}</span>)}
           </div>
           <span style={{ font: `500 12.5px ${SANS}`, color: C.navy }}>
-            <span style={{ fontWeight: 700 }}>4.9</span>
-            <span style={{ color: C.steel, fontWeight: 400 }}> · 312 BC drivers recovered </span>
-            <span style={{ fontFamily: MONO, color: C.gold, fontWeight: 600 }}>$1.3M+</span>
+            <span style={{ color: C.steel, fontWeight: 400 }}>BC total loss dispute assistant · results may vary</span>
           </span>
         </div>
       </div>
@@ -466,7 +464,7 @@ function HeroIllustration() {
 // ─────────────────────────────────────────────────────────────
 function TrustBar({ device }) {
   const items = [
-    { v: "$4,210", l: "avg. additional recovery", k: "above ICBC's first offer, when disputed" },
+    { v: "Free", l: "BC market scan", k: "no sign-up or credit card required" },
     { v: "90 sec", l: "to your letter", k: "no sign-up, no account needed" },
     { v: "§152", l: "Insurance (Vehicle) Act", k: "your legal right to dispute" },
     { v: "14 days", l: "ICBC must respond", k: "once your dispute letter is submitted" },
@@ -762,9 +760,9 @@ function StepIllustration({ n }) {
       {/* Info column */}
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         {[
-          { label: "ICBC Claims", value: "1-800-910-4222" },
+          { label: "Dispute basis", value: "Ins. (Vehicle) Act §152" },
           { label: "Response time", value: "14 business days" },
-          { label: "Escalate free", value: "civilresolutionbc.ca" },
+          { label: "Data source", value: "Live BC dealer listings" },
         ].map((r, i) => (
           <div key={i} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
             <span style={{ font: `500 5.5px ${MONO}`, color: C.steel, letterSpacing: ".08em", textTransform: "uppercase" }}>{r.label}</span>
@@ -1023,7 +1021,7 @@ function DiagnosticForm({ state, set, device, onReveal }) {
           </div>
 
           {/* STEP 3 — Scan & Compare (AI) */}
-          <FormStepHeader n="03" title="Scan the BC market" sub="Our AI searches for similar vehicles currently for sale in BC to determine if your offer is fair — or if you could recover more."/>
+          <FormStepHeader n="03" title="Scan the BC market" sub="Our AI searches for similar vehicles currently for sale in BC. Results are estimates — individual outcomes may vary."/>
 
           {!state.scan && !scanning && (
             <div style={{
@@ -1038,7 +1036,7 @@ function DiagnosticForm({ state, set, device, onReveal }) {
                 </div>
                 <div style={{ font: `600 16px ${SANS}`, color: C.navy, marginBottom: 4 }}>Run market scan</div>
                 <div style={{ font: `400 13px/1.55 ${SANS}`, color: C.steel, maxWidth: 460 }}>
-                  We'll search public BC listings matching your vehicle and compute the average ACV. Takes about 3 seconds.
+                  We'll search public BC dealer listings matching your vehicle. Results are market estimates only.
                 </div>
               </div>
               <Btn size="lg" variant="accent" disabled={!canScan} onClick={runScan}>
@@ -1295,7 +1293,7 @@ function LockedScanResult({ scan, recovery, recoveryPct, offer, device, onUnlock
             </div>
           ))}
           <div style={{ marginTop: 16, font: `400 12.5px/1.6 ${SANS}`, color: C.steel }}>
-            ACV computation per Insurance (Vehicle) Act §152, regional adjustment factor 1.04, trim premium 8.2%…
+            Market comparison based on publicly listed BC dealer prices at time of scan. Data may not reflect all available listings.
           </div>
         </div>
         {/* lock overlay */}
@@ -1350,7 +1348,7 @@ function LockedScanResult({ scan, recovery, recoveryPct, offer, device, onUnlock
               { n: "1", t: "Download your 2-page dispute letter", d: "Includes your BC market evidence and the ACV calculation your adjuster must consider." },
               { n: "2", t: "Email it to your ICBC adjuster", d: "Their contact is on your offer letter. Use your claim number in the subject line." },
               { n: "3", t: "ICBC has 14 business days to respond", d: "Under Section 152 of the Insurance Act, they must review your evidence." },
-              { n: "4", t: "No response? Escalate for free", d: "The Civil Resolution Tribunal handles ACV disputes at no cost. Most cases settle before this step." },
+              { n: "4", t: "No response? Consider escalating", d: "You may have options to escalate your dispute. Consult a BC lawyer or visit the BC government website for guidance on your rights." },
             ].map((s, i) => (
               <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                 <span style={{
@@ -1368,8 +1366,7 @@ function LockedScanResult({ scan, recovery, recoveryPct, offer, device, onUnlock
             marginTop: 14, padding: "10px 14px", background: C.cream, borderRadius: 8,
             font: `400 12px ${SANS}`, color: C.steel, display: "flex", gap: 18, flexWrap: "wrap",
           }}>
-            <span>ICBC Claims: <span style={{ fontFamily: MONO, fontWeight: 600, color: C.navy }}>1-800-910-4222</span></span>
-            <span>Free escalation: <span style={{ fontFamily: MONO, fontWeight: 600, color: C.navy }}>civilresolutionbc.ca</span></span>
+<span style={{ font: `400 11px ${SANS}`, color: C.steel }}>Results may vary. This tool provides market data only — not legal advice.</span>
           </div>
         </div>
       )}
@@ -1537,8 +1534,7 @@ function Footer({ device }) {
           <span style={{ font: `400 11px ${MONO}`, color: C.steelLight, letterSpacing: ".05em" }}>· British Columbia</span>
         </div>
         <div style={{ font: `400 11.5px/1.65 ${SANS}`, color: C.steelLight }}>
-          FairClaimBC is not affiliated with the Insurance Corporation of British Columbia. This tool is not legal advice; we are a data-driven drafting assistant.
-          For binding legal advice, consult a BC lawyer or the Civil Resolution Tribunal.
+          FairClaimBC is an independent data service and is not affiliated with ICBC or any government body. This tool provides market comparison data and document drafting assistance only — it is not legal advice. Market data is sourced from public BC dealer listings and may not reflect all available comparables or current market conditions. Results are estimates only and individual outcomes will vary. For legal advice, consult a licensed BC lawyer. By using this tool you agree that FairClaimBC is not responsible for the outcome of any insurance dispute.
         </div>
       </div>
       <div style={{ display: "flex", gap: 28, font: `500 12px ${SANS}`, color: C.steelLight, flexWrap: "wrap" }}>
@@ -1742,4 +1738,4 @@ Object.assign(window, {
   KnowYourRights, Testimonials, HowItWorks, FAQSection, Footer,
 });
 
-// v7
+// v8
