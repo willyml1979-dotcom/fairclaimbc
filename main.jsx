@@ -209,17 +209,7 @@ function DeltaReport({ state, delta, device, onPay, onShowCheckout, onBack, pric
                       }}>
                         {Number(c.km).toLocaleString("en-CA")} km
                       </span>
-                      {c.kmAdjustment != null && c.kmAdjustment !== 0 && (
-                        <span style={{
-                          font: `500 10px ${MONO}`,
-                          color: c.kmAdjustment > 0 ? C.good : C.alert,
-                          padding: "2px 7px", borderRadius: 4,
-                          background: c.kmAdjustment > 0 ? C.goodSoft : "#FBE9E2",
-                          border: `1px solid ${c.kmAdjustment > 0 ? C.good : C.alert}33`,
-                        }}>
-                          {c.kmAdjustment > 0 ? "+" : ""}{fmt(c.kmAdjustment)} km adj.
-                        </span>
-                      )}
+
                     </div>
                   )}
                   <div style={{
@@ -885,4 +875,4 @@ function Root() {
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<Root/>);
 
-// v6
+// v7
