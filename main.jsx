@@ -696,9 +696,28 @@ function ICBCShieldApp({ device, heroVariant, price, letterTone, showTrustBar })
   const [delta, setDelta] = useState(null);
   const containerRef = useRef(null);
 
+  // ── URL sync — each screen gets its own path for analytics ──
+  const SCREEN_URLS = { landing: "/", delta: "/report", letter: "/letter" };
+
   useEffect(() => {
     if (containerRef.current) containerRef.current.scrollTop = 0;
+    // Push URL change to browser history (no reload)
+    const url = SCREEN_URLS[screen] || "/";
+    if (window.location.pathname !== url) {
+      window.history.pushState({ screen }, "", url);
+    }
   }, [screen]);
+
+  // Handle browser back/forward buttons
+  useEffect(() => {
+    const onPop = (e) => {
+      const s = e.state?.screen || "landing";
+      setScreen(s);
+      if (s === "landing") { setDelta(null); setPendingDelta(null); setPaid(false); }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   const scrollToId = (id) => {
     const el = document.getElementById(id) || containerRef.current?.querySelector("#" + id);
@@ -741,6 +760,7 @@ function ICBCShieldApp({ device, heroVariant, price, letterTone, showTrustBar })
           onPay={() => setScreen("letter")}  // only reached when already paid
           onShowCheckout={() => {
             // Free during launch — go directly to letter
+            window.trackEvent?.("letter_requested");
             setScreen("letter");
           }}
           onBack={() => setScreen("landing")}
@@ -807,6 +827,7 @@ function ICBCShieldApp({ device, heroVariant, price, letterTone, showTrustBar })
               setPaid(true);
               setShowCheckout(false);
               if (pendingDelta) { setDelta(pendingDelta); setPendingDelta(null); }
+              window.trackEvent?.("report_unlocked");
               setScreen("delta");
             }} style={{ marginTop: 4, fontSize: 16 }}>
               {Icon.sparkle(15, "#fff")} Unlock my free report {Icon.arrow(14, "#fff")}
@@ -874,4 +895,4 @@ function Root() {
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<Root/>);
 
-// v8
+// v9
