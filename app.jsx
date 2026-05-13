@@ -886,6 +886,12 @@ function DiagnosticForm({ state, set, device, onReveal }) {
       console.log("[Scan] Comps URLs:", comps.map(c => c.url));
       const scan = { marketAvg, sampleCount, region, steps: SCAN_STEPS, sourceLabel, verifiedCount: data?.verifiedCount || 0 };
       set({ ...state, scan, comps });
+      window.trackEvent?.("scan_complete", {
+        year: state.year, make: state.make, model: state.model,
+        market_avg: marketAvg, offer: parseNum(state.offer),
+        gap: marketAvg - parseNum(state.offer),
+        sample_count: sampleCount,
+      });
 
     } catch (err) {
       console.warn("[Scan] Error:", err);
@@ -1156,6 +1162,7 @@ function DiagnosticForm({ state, set, device, onReveal }) {
                     );
                     window.open(`mailto:info@fairclaimbc.ca?subject=${subject}&body=${body}`);
                     setNotifySubmitted(true);
+                    window.trackEvent?.("no_results_email", { year: state.year, make: state.make, model: state.model, email: notifyEmail });
                   }}>
                     Notify me
                   </Btn>
@@ -1182,7 +1189,10 @@ function DiagnosticForm({ state, set, device, onReveal }) {
               recoveryPct={recoveryPct}
               offer={offerN}
               device={device}
-              onUnlock={() => onReveal(computeDelta({ offer: state.offer, comps: state.comps, marketAvg: state.scan?.marketAvg }))}
+              onUnlock={() => {
+                window.trackEvent?.("unlock_clicked", { year: state.year, make: state.make, model: state.model });
+                onReveal(computeDelta({ offer: state.offer, comps: state.comps, marketAvg: state.scan?.marketAvg }));
+              }}
               onRescan={() => set({ ...state, scan: null })}
             />
           )}
@@ -1738,4 +1748,4 @@ Object.assign(window, {
   KnowYourRights, Testimonials, HowItWorks, FAQSection, Footer,
 });
 
-// v8
+// v9
