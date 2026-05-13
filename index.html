@@ -41,16 +41,40 @@
     "theme": "warm"
   };
 </script>
+  <!-- Google Analytics GA4 — replace G-XXXXXXXXXX with your real ID -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-XXXXXXXXXX', { send_page_view: false });
+
+    // Track virtual page views when URL changes (SPA navigation)
+    const _origPushState = history.pushState.bind(history);
+    history.pushState = function(state, title, url) {
+      _origPushState(state, title, url);
+      gtag('event', 'page_view', {
+        page_location: window.location.href,
+        page_path: url,
+        page_title: document.title,
+      });
+    };
+
+    // Track key funnel events
+    window.trackEvent = function(name, params) {
+      gtag('event', name, params || {});
+    };
+  </script>
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel" src="design-canvas.jsx?v=8"></script>
-<script type="text/babel" src="ios-frame.jsx?v=8"></script>
-<script type="text/babel" src="browser-window.jsx?v=8"></script>
-<script type="text/babel" src="tweaks-panel.jsx?v=8"></script>
-<script type="text/babel" src="data.jsx?v=8"></script>
-<script type="text/babel" src="letter.jsx?v=8"></script>
-<script type="text/babel" src="app.jsx?v=8"></script>
-<script type="text/babel" src="main.jsx?v=8"></script>
+<script type="text/babel" src="design-canvas.jsx?v=9"></script>
+<script type="text/babel" src="ios-frame.jsx?v=9"></script>
+<script type="text/babel" src="browser-window.jsx?v=9"></script>
+<script type="text/babel" src="tweaks-panel.jsx?v=9"></script>
+<script type="text/babel" src="data.jsx?v=9"></script>
+<script type="text/babel" src="letter.jsx?v=9"></script>
+<script type="text/babel" src="app.jsx?v=9"></script>
+<script type="text/babel" src="main.jsx?v=9"></script>
 </body>
 </html>
