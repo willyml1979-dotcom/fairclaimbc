@@ -875,7 +875,7 @@ function CanvasApp() {
 
 function Root() {
   const [t] = useTweaks(window.__TWEAKS_DEFAULTS);
-  applyTheme(t.theme || "warm");
+  window.applyTheme?.(t.theme || "warm");
 
   // Detect real device size — render app directly, no canvas
   const isMobile = window.innerWidth < 768;
@@ -895,4 +895,4 @@ function Root() {
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<Root/>);
 
-// v9
+// v11
