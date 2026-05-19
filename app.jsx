@@ -268,6 +268,171 @@ function CanadaFlag({ w = 18 }) {
   );
 }
 
+// ── VehicleAutocomplete — smart single text field replacing 4 dropdowns ───────
+function VehicleAutocomplete({ state, set }) {
+  const [raw, setRaw]           = React.useState(
+    [state.year, state.make, state.model, state.trim].filter(Boolean).join(" ")
+  );
+  const [suggestions, setSuggestions] = React.useState([]);
+  const [showSugg, setShowSugg]       = React.useState(false);
+  const [parsed, setParsed]           = React.useState(!!state.year);
+  const inputRef = React.useRef(null);
+
+  // Parse "2019 Toyota RAV4 XLE" into structured fields
+  const parseVehicle = (text) => {
+    const t = text.trim();
+    if (!t) return null;
+    const yearMatch = t.match(/\b(19\d{2}|20[0-2]\d)\b/);
+    if (!yearMatch) return null;
+    const year = yearMatch[1];
+    const rest = t.replace(year, "").trim();
+    // Try to match make from MAKES list (case-insensitive)
+    const makeMatch = MAKES.find(m => m !== "Other" && rest.toLowerCase().startsWith(m.toLowerCase()));
+    if (!makeMatch) return null;
+    const afterMake = rest.slice(makeMatch.length).trim();
+    // Try to match model
+    const models = MODELS_FOR(makeMatch).filter(m => m !== "Other");
+    const modelMatch = models.find(m => afterMake.toLowerCase().startsWith(m.toLowerCase()));
+    const model = modelMatch || (afterMake.split(" ")[0] || "");
+    const trim = modelMatch ? afterMake.slice(modelMatch.length).trim() : afterMake.split(" ").slice(1).join(" ");
+    return { year, make: makeMatch, model: model || "Other", trim: trim || "" };
+  };
+
+  // Build suggestions as user types
+  const buildSuggestions = (text) => {
+    const t = text.toLowerCase().trim();
+    if (t.length < 2) return [];
+    const yearMatch = t.match(/\b(19\d{2}|20[0-2]\d)\b/);
+    const year = yearMatch?.[1] || "";
+    const rest = year ? t.replace(year, "").trim() : t;
+    // Find matching makes
+    const matchingMakes = MAKES.filter(m => m !== "Other" && m.toLowerCase().includes(rest.split(" ")[0]));
+    const suggestions = [];
+    for (const make of matchingMakes.slice(0, 3)) {
+      const models = MODELS_FOR(make).filter(m => m !== "Other").slice(0, 4);
+      for (const model of models) {
+        const label = [year || "20XX", make, model].join(" ");
+        suggestions.push({ label, year: year || "", make, model, trim: "" });
+        if (suggestions.length >= 6) break;
+      }
+      if (suggestions.length >= 6) break;
+    }
+    return suggestions;
+  };
+
+  const handleChange = (e) => {
+    const v = e.target.value;
+    setRaw(v);
+    setParsed(false);
+    setSuggestions(buildSuggestions(v));
+    setShowSugg(true);
+    // Auto-parse if it looks complete (year + make + model)
+    const p = parseVehicle(v);
+    if (p && p.year && p.make && p.model) {
+      set({ ...state, year: p.year, make: p.make, model: p.model, trim: p.trim, scan: null });
+      setParsed(true);
+    } else {
+      set({ ...state, year: "", make: "", model: "", trim: "", scan: null });
+    }
+  };
+
+  const selectSuggestion = (s) => {
+    const display = [s.year || new Date().getFullYear(), s.make, s.model].join(" ");
+    setRaw(display);
+    setShowSugg(false);
+    setParsed(true);
+    set({ ...state, year: s.year || String(new Date().getFullYear()), make: s.make, model: s.model, trim: s.trim || "", scan: null });
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div style={{ marginBottom: 14, position: "relative" }}>
+      <div style={{ position: "relative" }}>
+        <input
+          ref={inputRef}
+          value={raw}
+          onChange={handleChange}
+          onFocus={() => raw.length > 1 && setShowSugg(true)}
+          onBlur={() => setTimeout(() => setShowSugg(false), 150)}
+          placeholder="e.g.  2019 Toyota RAV4"
+          autoComplete="off"
+          style={{
+            width: "100%", padding: "14px 44px 14px 16px",
+            font: `500 17px ${SANS}`, color: C.navy,
+            background: C.paper, border: `2px solid ${parsed ? C.good : C.line}`,
+            borderRadius: 10, outline: "none", boxSizing: "border-box",
+            transition: "border-color .2s",
+            boxShadow: parsed ? `0 0 0 3px ${C.good}22` : "none",
+          }}
+          onFocusCapture={(e) => e.target.style.borderColor = C.gold}
+          onBlurCapture={(e) => e.target.style.borderColor = parsed ? C.good : C.line}
+        />
+        {/* Status icon */}
+        <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)" }}>
+          {parsed
+            ? <span style={{ color: C.good, fontSize: 18 }}>✓</span>
+            : <span style={{ color: C.steel, fontSize: 15 }}>🔍</span>
+          }
+        </div>
+      </div>
+
+      {/* Parsed confirmation */}
+      {parsed && state.year && state.make && (
+        <div style={{
+          marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+          font: `500 12px ${SANS}`,
+        }}>
+          {[
+            { label: "Year", val: state.year },
+            { label: "Make", val: state.make },
+            { label: "Model", val: state.model },
+            state.trim && { label: "Trim", val: state.trim },
+          ].filter(Boolean).map((item, i) => (
+            <span key={i} style={{
+              padding: "3px 10px", borderRadius: 999,
+              background: C.goodSoft, border: `1px solid ${C.good}33`,
+              color: C.good,
+            }}>
+              {item.label}: <strong>{item.val}</strong>
+            </span>
+          ))}
+          <button onClick={() => { setRaw(""); setParsed(false); set({ ...state, year: "", make: "", model: "", trim: "" }); inputRef.current?.focus(); }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: C.steel, font: `400 11px ${SANS}`, textDecoration: "underline" }}>
+            clear
+          </button>
+        </div>
+      )}
+
+      {/* Dropdown suggestions */}
+      {showSugg && suggestions.length > 0 && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 100,
+          background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10,
+          boxShadow: "0 8px 24px -8px rgba(14,42,71,0.15)", overflow: "hidden",
+        }}>
+          {suggestions.map((s, i) => (
+            <div key={i}
+              onMouseDown={() => selectSuggestion(s)}
+              style={{
+                padding: "11px 16px", cursor: "pointer",
+                font: `400 14px ${SANS}`, color: C.navy,
+                borderBottom: i < suggestions.length - 1 ? `1px solid ${C.line}` : "none",
+                display: "flex", alignItems: "center", gap: 10,
+                transition: "background .12s",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = C.surface}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            >
+              <span style={{ fontSize: 16 }}>🚗</span>
+              <span>{s.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Header({ device, onJump, onScrollTo }) {
   const isMobile = device === "mobile";
   const navLink = (label, id) => (
@@ -919,6 +1084,39 @@ function DiagnosticForm({ state, set, device, onReveal }) {
   };
 
   return (
+    {/* Mobile-only sample Delta — shows BEFORE the form to motivate completion */}
+    {isMobile && (
+      <div style={{
+        background: `linear-gradient(160deg, ${C.navy} 0%, ${C.navyDeep} 100%)`,
+        padding: "28px 20px 32px", textAlign: "center",
+      }}>
+        <div style={{ font: `500 10px ${MONO}`, color: C.gold, letterSpacing: ".15em", textTransform: "uppercase", marginBottom: 10 }}>
+          · SAMPLE RESULT ·
+        </div>
+        <div style={{ font: `400 13px ${SANS}`, color: C.steelLight, marginBottom: 6 }}>
+          You could be owed an additional
+        </div>
+        <div style={{
+          font: `700 64px/1 ${SERIF}`, color: "#fff", letterSpacing: "-.04em",
+          display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6,
+        }}>
+          <span style={{ color: C.gold, fontSize: 32, fontWeight: 600 }}>+</span>
+          $6,732
+        </div>
+        <div style={{ marginTop: 12, font: `400 12px ${SANS}`, color: C.steelLight }}>
+          Based on 3 real BC dealer listings · takes 15 seconds
+        </div>
+        <div style={{
+          marginTop: 16, display: "inline-flex", alignItems: "center", gap: 8,
+          padding: "8px 16px", background: "rgba(255,255,255,0.08)",
+          borderRadius: 999, border: "1px solid rgba(255,255,255,0.15)",
+          font: `500 11px ${SANS}`, color: C.steelLight,
+        }}>
+          ↓ Enter your vehicle below to see your number
+        </div>
+      </div>
+    )}
+
     <section id="diagnostic" style={{
       padding: isMobile ? "32px 20px 40px" : "76px 48px",
       background: C.surface, scrollMarginTop: 80,
@@ -939,56 +1137,9 @@ function DiagnosticForm({ state, set, device, onReveal }) {
           padding: isMobile ? 22 : 36,
           boxShadow: "0 4px 24px -8px rgba(14,42,71,0.06)",
         }}>
-          {/* STEP 1 — Vehicle */}
-          <FormStepHeader n="01" title="Your vehicle information" sub="Pick from Canadian-market makes and models."/>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr 1fr" : "120px 1fr 1fr 1fr",
-            gap: 14, marginBottom: 14,
-          }}>
-            <Field label="Year">
-              <Select
-                value={state.year}
-                onChange={(v) => set({ ...state, year: v })}
-                options={YEARS}
-                placeholder="Year"
-              />
-            </Field>
-            <Field label="Make">
-              <Select
-                value={state.make}
-                onChange={(v) => set({ ...state, make: v, model: "", trim: "", modelOther: "" })}
-                options={MAKES}
-                placeholder="Select make"
-              />
-            </Field>
-            <Field label="Model">
-              <Select
-                value={state.model}
-                onChange={(v) => set({ ...state, model: v, trim: v === "Other" ? "" : state.trim, modelOther: "" })}
-                options={modelOptions}
-                placeholder={state.make ? "Select model" : "Pick make first"}
-                disabled={!state.make}
-              />
-            </Field>
-            <Field label="Trim">
-              <Select
-                value={state.trim}
-                onChange={(v) => set({ ...state, trim: v })}
-                options={trimOptions}
-                placeholder={state.model && !modelIsOther ? "Select trim" : "—"}
-                disabled={!state.model || modelIsOther}
-              />
-            </Field>
-          </div>
-
-          {modelIsOther && (
-            <div style={{ marginBottom: 14 }}>
-              <Field label="Vehicle (year + make + model + trim)" hint="Couldn't find it in the dropdowns? Type the full name here.">
-                <Input value={state.modelOther} onChange={(e) => set({ ...state, modelOther: e.target.value })} placeholder="e.g. 2018 Volvo XC60 T6 Inscription"/>
-              </Field>
-            </div>
-          )}
+          {/* STEP 1 — Vehicle — smart single text field */}
+          <FormStepHeader n="01" title="Your vehicle" sub="Type year, make and model — e.g. 2019 Toyota RAV4 XLE"/>
+          <VehicleAutocomplete state={state} set={set}/>
 
           <div style={{
             display: "grid",
@@ -1045,8 +1196,9 @@ function DiagnosticForm({ state, set, device, onReveal }) {
                   We'll search public BC dealer listings matching your vehicle. Results are market estimates only.
                 </div>
               </div>
-              <Btn size="lg" variant="accent" disabled={!canScan} onClick={runScan}>
-                {Icon.sparkle(14, "#fff")} Scan & compare
+              <Btn size="lg" variant="accent" disabled={!canScan} onClick={runScan}
+                style={{ fontSize: 17, fontWeight: 700, padding: "14px 28px", letterSpacing: "-.01em" }}>
+                See what I'm owed →
               </Btn>
             </div>
           )}
@@ -1748,4 +1900,4 @@ Object.assign(window, {
   KnowYourRights, Testimonials, HowItWorks, FAQSection, Footer,
 });
 
-// v9
+// v10
