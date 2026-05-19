@@ -1084,6 +1084,7 @@ function DiagnosticForm({ state, set, device, onReveal }) {
   };
 
   return (
+    <>
     {/* Mobile-only sample Delta — shows BEFORE the form to motivate completion */}
     {isMobile && (
       <div style={{
@@ -1358,6 +1359,7 @@ function DiagnosticForm({ state, set, device, onReveal }) {
         </div>
       </div>
     </section>
+    </>
   );
 }
 
@@ -1900,4 +1902,4 @@ Object.assign(window, {
   KnowYourRights, Testimonials, HowItWorks, FAQSection, Footer,
 });
 
-// v10
+// v11
